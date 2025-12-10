@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 // Fix for __dirname in ES modules
@@ -16,7 +17,8 @@ app.use(express.json());
 // Serve Static Frontend Files from the 'dist' folder created by 'npm run build'
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// --- IN-MEMORY DATABASE (MOCK DATA) ---
+// --- DATA PERSISTENCE SETUP ---
+const PRODUCTS_FILE = path.join(__dirname, 'server_products.json');
 
 const generateMockProducts = () => {
     const products = [];
@@ -173,10 +175,41 @@ const generateMockProducts = () => {
     return products;
 };
 
-// In-Memory Data Store
-let products = generateMockProducts();
+// In-Memory Data Store with File Persistence
+let products = [];
 let orders = [];
 let users = [];
+const otpStore = {}; // Store OTPs in memory { identifier: { code: "xxxx", expires: number } }
+
+// LOAD DATA
+const loadData = () => {
+    try {
+        if (fs.existsSync(PRODUCTS_FILE)) {
+            console.log("Loading products from file...");
+            const data = fs.readFileSync(PRODUCTS_FILE, 'utf8');
+            products = JSON.parse(data);
+        } else {
+            console.log("Generating mock products...");
+            products = generateMockProducts();
+            saveProducts(); // Save initial mock data
+        }
+    } catch (error) {
+        console.error("Error loading data:", error);
+        products = generateMockProducts();
+    }
+};
+
+const saveProducts = () => {
+    try {
+        fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2));
+    } catch (error) {
+        console.error("Error saving products:", error);
+    }
+};
+
+// Initial Load
+loadData();
+
 
 // --- API ROUTES ---
 
@@ -197,6 +230,7 @@ app.get('/api/products/:id', (req, res) => {
 app.post('/api/products', (req, res) => {
     const newProduct = { ...req.body, id: `p-${Date.now()}` };
     products.unshift(newProduct);
+    saveProducts(); // Save to file
     res.json(newProduct);
 });
 
@@ -204,6 +238,7 @@ app.put('/api/products/:id', (req, res) => {
     const index = products.findIndex(p => p.id === req.params.id);
     if (index >= 0) {
         products[index] = { ...products[index], ...req.body };
+        saveProducts(); // Save to file
         res.json(products[index]);
     } else {
         res.status(404).json({ message: 'Product not found' });
@@ -212,6 +247,7 @@ app.put('/api/products/:id', (req, res) => {
 
 app.delete('/api/products/:id', (req, res) => {
     products = products.filter(p => p.id !== req.params.id);
+    saveProducts(); // Save to file
     res.json({ success: true });
 });
 
@@ -368,16 +404,41 @@ app.post('/api/payment/initiate', async (req, res) => {
     }
 });
 
-// OTP
+// OTP SYSTEM
 app.post('/api/send-otp', (req, res) => {
     const { identifier } = req.body;
-    console.log(`[Server] Sending OTP to ${identifier}`);
-    res.json({ success: true, message: "OTP Sent", devCode: "1234" });
+    
+    // Generate Random 4-Digit OTP
+    const randomOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    
+    console.log(`[Server] Generating Random OTP for ${identifier}: ${randomOtp}`);
+    
+    // Store OTP in memory (Valid for 5 mins)
+    otpStore[identifier] = {
+        code: randomOtp,
+        expires: Date.now() + 5 * 60 * 1000
+    };
+
+    // Return the code to the frontend (simulation)
+    res.json({ success: true, message: "OTP Sent", devCode: randomOtp });
 });
 
 app.post('/api/verify-otp', (req, res) => {
     const { identifier, code } = req.body;
-    if (code === "1234") {
+    
+    const storedData = otpStore[identifier];
+
+    if (!storedData) {
+        return res.status(400).json({ success: false, message: "OTP expired or not requested" });
+    }
+
+    if (Date.now() > storedData.expires) {
+        delete otpStore[identifier];
+        return res.status(400).json({ success: false, message: "OTP expired" });
+    }
+
+    if (storedData.code === code) {
+        delete otpStore[identifier]; // One-time use
         res.json({ success: true });
     } else {
         res.status(400).json({ success: false, message: "Invalid OTP" });

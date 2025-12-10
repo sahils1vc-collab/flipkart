@@ -53,6 +53,7 @@ export const sendOtp = async (identifier: string): Promise<{ success: boolean; m
 
 export const verifyOtp = async (identifier: string, code: string): Promise<{ success: boolean; message: string }> => {
     
+    // 1. Try Backend Verification first
     if (ENABLE_API) {
         try {
             const response = await fetch(`${API_BASE_URL}/verify-otp`, {
@@ -64,9 +65,17 @@ export const verifyOtp = async (identifier: string, code: string): Promise<{ suc
             const data = await response.json();
             if (response.ok && data.success) {
                 return { success: true, message: "Verification Successful" };
+            } else {
+                 // If backend explicitly says Invalid OTP, don't check mock store
+                 throw new Error(data.message || "Invalid OTP");
             }
-        } catch (error) {
-            // Ignore backend error and check local mock
+        } catch (error: any) {
+            // Only fall back to local mock if connection failed, not if logic failed
+            if (error.message !== "Invalid OTP" && error.message !== "OTP expired") {
+                 console.log("Backend verification unavailable. Checking local mock.");
+            } else {
+                 return { success: false, message: error.message };
+            }
         }
     }
 
