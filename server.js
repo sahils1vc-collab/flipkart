@@ -288,7 +288,15 @@ app.post('/api/payment/initiate', async (req, res) => {
     // Credentials from Environment Variables
     const APP_ID = process.env.CASHFREE_APP_ID;
     const SECRET_KEY = process.env.CASHFREE_SECRET_KEY;
-    const ENV = process.env.CASHFREE_ENV || 'TEST'; // TEST or PROD
+    
+    // IMPORTANT: Default to PROD for Real Payments if not specified.
+    let ENV = process.env.CASHFREE_ENV || 'PROD'; 
+
+    // Auto-detect TEST App ID to switch to Sandbox automatically
+    if (APP_ID && APP_ID.toUpperCase().startsWith('TEST')) {
+        console.log("Detected TEST App ID. Switching to Sandbox mode.");
+        ENV = 'TEST';
+    }
 
     // Check if keys are missing
     if (!APP_ID || !SECRET_KEY) {
@@ -304,7 +312,7 @@ app.post('/api/payment/initiate', async (req, res) => {
     }
 
     try {
-        console.log(`[Payment] Creating Cashfree Order ${orderId}`);
+        console.log(`[Payment] Creating Cashfree Order ${orderId} in ${ENV} mode`);
         
         const baseUrl = ENV === 'PROD' 
             ? 'https://api.cashfree.com/pg/orders' 
@@ -340,7 +348,8 @@ app.post('/api/payment/initiate', async (req, res) => {
         if (data.payment_session_id) {
              res.json({
                  success: true,
-                 paymentSessionId: data.payment_session_id
+                 paymentSessionId: data.payment_session_id,
+                 environment: ENV // Pass environment back to frontend
              });
         } else {
              console.error("Cashfree API Error:", data.message);

@@ -34,16 +34,6 @@ export const Payment: React.FC = () => {
   const [selectedMode, setSelectedMode] = useState<PaymentMode>('gpay'); 
   const [upiId, setUpiId] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [cashfree, setCashfree] = useState<any>(null);
-
-  // Initialize Cashfree SDK
-  useEffect(() => {
-     if (window.Cashfree) {
-         setCashfree(new window.Cashfree({
-             mode: "sandbox" // Change to "production" for real payments
-         }));
-     }
-  }, []);
   
   // Validate flow
   useEffect(() => {
@@ -88,8 +78,13 @@ export const Payment: React.FC = () => {
         if (result.success) {
             
             // Scenario A: Real Payment via Cashfree SDK
-            if (result.paymentSessionId && cashfree) {
-                cashfree.checkout({
+            if (result.paymentSessionId && window.Cashfree) {
+                // Initialize Cashfree in correct mode based on Backend Env
+                const cf = new window.Cashfree({
+                    mode: result.environment === 'PROD' ? "production" : "sandbox"
+                });
+
+                cf.checkout({
                     paymentSessionId: result.paymentSessionId,
                     redirectTarget: "_self" // Redirects current page
                 });

@@ -460,7 +460,7 @@ export const initiatePayment = async (
     mobile: string,
     paymentMode: string, 
     vpa?: string
-): Promise<{success: boolean, paymentSessionId?: string, redirectUrl?: string, error?: string}> => {
+): Promise<{success: boolean, paymentSessionId?: string, redirectUrl?: string, error?: string, environment?: string}> => {
     
     const customerId = email ? email.replace(/[^a-zA-Z0-9]/g, '') : mobile;
     const payload = { orderId, amount, customerPhone: mobile, customerEmail: email, customerId, paymentMode, vpa };
@@ -468,12 +468,13 @@ export const initiatePayment = async (
     if (ENABLE_API) {
         try {
             console.log("Calling Backend with Payload:", payload);
-            const response = await apiRequest<{success: boolean, paymentSessionId?: string, redirectUrl?: string}>('/payment/initiate', 'POST', payload);
+            const response = await apiRequest<{success: boolean, paymentSessionId?: string, redirectUrl?: string, environment?: string}>('/payment/initiate', 'POST', payload);
             
             return {
                 success: response.success,
                 paymentSessionId: response.paymentSessionId,
-                redirectUrl: response.redirectUrl
+                redirectUrl: response.redirectUrl,
+                environment: response.environment
             };
         } catch (e) {
             console.error("Payment API Failed", e);
