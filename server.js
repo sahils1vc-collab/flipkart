@@ -334,16 +334,28 @@ app.post('/api/payment/initiate', async (req, res) => {
         ENV = 'TEST';
     }
 
+    // Determine accurate Return URL
+    // Fix: Ensure we catch the protocol and host correctly even behind Render proxy
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host');
+    const domain = `${protocol}://${host}`;
+    
+    // Log for user debugging
+    if (ENV === 'PROD') {
+        console.log("==================================================");
+        console.log("CASHFREE PRODUCTION MODE ACTIVE");
+        console.log(`Ensure this domain is whitelisted: ${domain}`);
+        console.log("==================================================");
+    }
+
     // Check if keys are missing
     if (!APP_ID || !SECRET_KEY) {
         console.warn("Cashfree Credentials Missing - Falling back to Mock");
-        const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-        const host = req.get('host');
         
         // Return success with redirectUrl (mock) instead of error
         return res.json({ 
             success: true, 
-            redirectUrl: `${protocol}://${host}/#/mock-payment-gateway?orderId=${orderId}&amount=${amount}`
+            redirectUrl: `${domain}/#/mock-payment-gateway?orderId=${orderId}&amount=${amount}`
         });
     }
 
@@ -364,7 +376,8 @@ app.post('/api/payment/initiate', async (req, res) => {
                 customer_phone: customerPhone || '9999999999'
             },
             order_meta: {
-                return_url: `${req.headers.origin}/#/order-success/${orderId}?status={order_status}`
+                // Use the robust domain variable constructed above
+                return_url: `${domain}/#/order-success/${orderId}?status={order_status}`
             }
         };
 
@@ -390,11 +403,9 @@ app.post('/api/payment/initiate', async (req, res) => {
         } else {
              console.error("Cashfree API Error:", data.message);
              // Return Mock URL as fallback even if API call fails (so user isn't stuck)
-             const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-             const host = req.get('host');
              return res.json({ 
                  success: true, 
-                 redirectUrl: `${protocol}://${host}/#/mock-payment-gateway?orderId=${orderId}&amount=${amount}&msg=api_fail`
+                 redirectUrl: `${domain}/#/mock-payment-gateway?orderId=${orderId}&amount=${amount}&msg=api_fail`
              });
         }
 
