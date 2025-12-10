@@ -1,3 +1,4 @@
+
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -338,13 +339,21 @@ app.post('/api/payment/initiate', async (req, res) => {
     // Fix: Ensure we catch the protocol and host correctly even behind Render proxy
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;
     const host = req.get('host');
-    const domain = `${protocol}://${host}`;
+    let domain = `${protocol}://${host}`;
     
+    // Removing trailing slash if present to avoid double slash issues
+    if (domain.endsWith('/')) {
+        domain = domain.slice(0, -1);
+    }
+    
+    const returnUrl = `${domain}/#/order-success/${orderId}?status={order_status}`;
+
     // Log for user debugging
     if (ENV === 'PROD') {
         console.log("==================================================");
         console.log("CASHFREE PRODUCTION MODE ACTIVE");
-        console.log(`Ensure this domain is whitelisted: ${domain}`);
+        console.log(`WHITELIST THIS EXACT DOMAIN: ${domain}`);
+        console.log(`GENERATED RETURN URL: ${returnUrl}`);
         console.log("==================================================");
     }
 
@@ -376,8 +385,7 @@ app.post('/api/payment/initiate', async (req, res) => {
                 customer_phone: customerPhone || '9999999999'
             },
             order_meta: {
-                // Use the robust domain variable constructed above
-                return_url: `${domain}/#/order-success/${orderId}?status={order_status}`
+                return_url: returnUrl
             }
         };
 

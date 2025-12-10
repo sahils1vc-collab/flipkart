@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useShop } from '../context/ShopContext';
 import { initiatePayment, createOrder } from '../services/data';
-import { ShieldCheck, ArrowLeft, CreditCard, Smartphone, Wallet, Building2, Percent, Truck, Loader2, AtSign } from 'lucide-react';
+import { ShieldCheck, ArrowLeft, CreditCard, Smartphone, Wallet, Building2, Percent, Truck, Loader2, AtSign, AlertTriangle } from 'lucide-react';
 import { Order } from '../types';
 
 // Declare Cashfree on Window
@@ -188,19 +189,32 @@ export const Payment: React.FC = () => {
            case 'cod':
               return (
                   <div className="p-4 md:pt-0 animate-in fade-in slide-in-from-top-2 duration-200">
-                       <div className="flex items-start gap-2 bg-slate-50 p-3 border border-slate-200 rounded-[2px]">
-                           <Truck className="w-4 h-4 text-slate-500 mt-0.5" />
-                           <p className="text-xs text-slate-500">
-                               Confirm Order with Cash on Delivery
-                           </p>
+                       {/* COD Unavailable Message */}
+                       <div className="flex items-start gap-3 bg-yellow-50 p-4 border border-yellow-200 rounded-[2px] mb-5">
+                            <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                            <div>
+                                <p className="text-sm text-yellow-800 font-bold mb-1">Currently Unavailable</p>
+                                <p className="text-xs text-yellow-700 leading-relaxed">
+                                    Cash on Delivery is currently unavailable for your location due to high demand. Please use online payment methods for a faster delivery.
+                                </p>
+                            </div>
                        </div>
-                       <button 
-                        onClick={handlePay}
-                        disabled={isProcessing}
-                        className="mt-4 bg-[#fb641b] text-white font-bold py-3.5 px-8 rounded-[2px] text-sm uppercase shadow-sm hover:bg-[#e85d19] transition-colors w-full md:w-auto flex items-center justify-center gap-2 disabled:opacity-70"
-                      >
-                         {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : `Place Order`}
-                      </button>
+
+                       {/* Disabled UI */}
+                       <div className="opacity-50 pointer-events-none grayscale select-none">
+                            <div className="flex items-start gap-2 bg-slate-50 p-3 border border-slate-200 rounded-[2px]">
+                                <Truck className="w-4 h-4 text-slate-500 mt-0.5" />
+                                <p className="text-xs text-slate-500">
+                                    Confirm Order with Cash on Delivery
+                                </p>
+                            </div>
+                            <button 
+                                disabled
+                                className="mt-4 bg-slate-400 text-white font-bold py-3.5 px-8 rounded-[2px] text-sm uppercase shadow-sm w-full md:w-auto flex items-center justify-center gap-2 cursor-not-allowed"
+                            >
+                                Place Order
+                            </button>
+                       </div>
                   </div>
               );
           default:
